@@ -1,0 +1,2 @@
+include photomosaic/tile_directory/*
+include photomosaic/*.pickle
