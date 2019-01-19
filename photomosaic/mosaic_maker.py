@@ -1,36 +1,12 @@
-import time
 import os
+import shutil
 import numpy as np
 from PIL import Image
 
 from photomosaic.image_splitter import ImageSplitter
 from photomosaic.tile_processor import TileProcessor
 from photomosaic import matrix_math
-
-
-def get_unique_fp():
-    return 'mosaic_{}.jpg'.format(int(time.time() * 1000))
-
-
-class SimpleQueue:
-    def __init__(self, max_length=0):
-        self.queue = []
-        self.max_length = max_length
-
-    def __bool__(self):
-        return bool(self.queue)
-
-    def __contains__(self, item):
-        return item in self.queue
-
-    def put(self, item):
-        self.queue.insert(0, item)
-        self.queue = self.queue[0: self.max_length]
-
-    def pop(self):
-        if not self:
-            return None
-        return self.queue.pop()
+from photomosaic.utilities import get_unique_fp, get_timestamp, create_gif_from_directory
 
 
 class MosaicMaker(object):
@@ -45,6 +21,7 @@ class MosaicMaker(object):
                  save_intermediates=False, max_repeats=0, method='euclid'):
         img = self.set_img(img, enlargement).convert(img_type)
         tile_directory = tile_directory if tile_directory is not None else self.DEFAULT_TILE_DIRECTORY
+        output_file = output_file if output_file is not None else get_unique_fp()
         self.save_intermediates = save_intermediates
         self.intermediate_frames = intermediate_frames
         self.image_data = ImageSplitter(img, tile_size)
@@ -72,13 +49,37 @@ class MosaicMaker(object):
         out = matrix_math.get_order(res, out_idxs)
         return list(out)
 
-    def replace_tiles(self):
-        if self.save_intermediates:
-            self.image_data.hilbertize()
-        tile_order = self.get_tile_order()
+    def setup_intermediates(self):
+        frame_directory = get_timestamp()
+        os.mkdir(frame_directory)
+        self.image_data.hilbertize()
+        return frame_directory
+
+    def create_gif_from_progress(self, tile_order):
+        total = len(tile_order)
+        frame_directory = self.setup_intermediates()
+        save_on = max(total // max(self.intermediate_frames, 1), 1)
+        for img_idx, tile_idx in enumerate(tile_order):
+            self.image_data.tile_list[img_idx] = self.tile_data.tile_list[tile_idx]
+            if img_idx % save_on == 0 or img_idx == (total - 1):
+                self.image_data.stitch_image()
+                self.save(os.path.join(frame_directory, f'Mosaic_frame_{img_idx:04d}.jpg'))
+        self.image_data.stitch_image()
+        create_gif_from_directory(frame_directory)
+        shutil.rmtree(frame_directory)
+
+    def replace_tiles_no_gif(self, tile_order):
         for img_idx, tile_idx in enumerate(tile_order):
             self.image_data.tile_list[img_idx] = self.tile_data.tile_list[tile_idx]
         self.image_data.stitch_image()
+
+    def replace_tiles(self, save_intermediates=None):
+        save_intermediates = save_intermediates if save_intermediates is not None else self.save_intermediates
+        tile_order = self.get_tile_order()
+        if save_intermediates:
+            self.create_gif_from_progress(tile_order)
+        else:
+            self.replace_tiles_no_gif(tile_order)
 
     def save(self, output_file=None):
         output_file = output_file if output_file is not None else self.output_file

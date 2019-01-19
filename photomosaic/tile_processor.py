@@ -1,7 +1,7 @@
-import os
 import numpy as np
 
 from PIL import Image
+from photomosaic.utilities import get_absolute_fp_list
 
 
 class TileProcessor(object):
@@ -12,10 +12,6 @@ class TileProcessor(object):
         self.tile_size = tile_size
         self.img_type = img_type
         self.tile_list = self.get_tiles(tile_directory)
-
-    @staticmethod
-    def get_absolute_fp_list(directory):
-        return [os.path.join(directory, fp) for fp in os.listdir(directory)]
 
     @staticmethod
     def crop_image(img):
@@ -38,7 +34,7 @@ class TileProcessor(object):
 
     def get_tiles(self, tile_directory=None):
         tile_directory = tile_directory if tile_directory is not None else self.tile_directory
-        fp_list = self.get_absolute_fp_list(tile_directory)
+        fp_list = get_absolute_fp_list(tile_directory)
         return [self.process_image(fp) for fp in fp_list]
 
 

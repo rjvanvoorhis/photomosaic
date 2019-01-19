@@ -5,12 +5,9 @@ import shutil
 from PIL import Image
 from photomosaic.mosaic_maker import MosaicMaker
 from photomosaic.progress_bar import parallel_process
+from photomosaic.utilities import get_timestamp
 import functools
 TILE_DIRECTORY = f'{os.path.dirname(__file__)}/../tile_directories/characters'
-
-
-def get_timestamp():
-    return str(time.time()).replace('.', '')
 
 
 class GifSplitter(object):
