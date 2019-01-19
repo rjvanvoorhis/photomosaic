@@ -46,7 +46,8 @@ class GifSplitter(object):
         except Exception:
             self.delay = 5
 
-    def asciify(self, output_file=None, tile_size=8, enlargement=1, progress_callback=None, optimize=True):
+    def to_photomosaic(self, tile_directory=DEFAULT_TILE_DIRECTORY, output_file=None, tile_size=8,
+                       enlargement=1, progress_callback=None, optimize=True, img_type='L'):
         frame_directory = get_timestamp()
         output_file = output_file if output_file else f'Mosaic_of_{self.original_file}'
         if not os.path.exists(frame_directory):
@@ -54,14 +55,19 @@ class GifSplitter(object):
         if not os.path.exists(self.frame_directory):
             self.split_gif()
 
-        progress = parallel_process(functools.partial(self.make_mosaic_frame, frame_directory=frame_directory,
-                                                      tile_size=tile_size, enlargement=enlargement, optimize=optimize),
+        progress = parallel_process(functools.partial(self.make_mosaic_frame, tile_directory=tile_directory,
+                                                      frame_directory=frame_directory, tile_size=tile_size,
+                                                      enlargement=enlargement, optimize=optimize, img_type=img_type),
                                     sorted(os.listdir(self.frame_directory)), desc='Processing Frames')
         for idx, item in progress:
             if progress_callback is not None:
                 progress_callback(idx, item)
         self.stitch_gif(frame_directory, output_file, optimize=optimize)
         return frame_directory, output_file
+
+    def asciify(self, output_file=None, tile_size=8, enlargement=1, progress_callback=None, optimize=True):
+        return self.to_photomosaic(output_file=output_file, tile_size=tile_size, enlargement=enlargement,
+                                   progress_callback=progress_callback, optimize=optimize)
 
     def stitch_gif(self, frame_directory=None, output_file=None, optimize=True):
         frame_directory = frame_directory if frame_directory else self.frame_directory
@@ -74,10 +80,10 @@ class GifSplitter(object):
             if os.path.exists(directory):
                 shutil.rmtree(directory)
 
-    def make_mosaic_frame(self, fp, frame_directory, tile_size, enlargement, optimize):
+    def make_mosaic_frame(self, fp, tile_directory, frame_directory, tile_size, enlargement, optimize, img_type):
         cleaned_fp = f'{fp.replace(".", "_")}.gif'
         img = Image.open(os.path.join(self.frame_directory, fp))
-        mosaic = MosaicMaker(img, tile_directory=DEFAULT_TILE_DIRECTORY, img_type='L',
+        mosaic = MosaicMaker(img, tile_directory=tile_directory, img_type=img_type,
                              save_intermediates=False, tile_size=tile_size, enlargement=enlargement,
                              output_file=os.path.join(frame_directory, cleaned_fp))
         if optimize:

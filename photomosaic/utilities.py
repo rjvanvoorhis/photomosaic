@@ -48,7 +48,6 @@ class SimpleQueue:
         return self.queue.pop()
 
 
-@timeit
 def resize_directory(directory, max_dimension=None):
     dim = max_dimension if max_dimension is not None else MAX_GIF_DIMENSION
     for fp in get_absolute_fp_list(directory):
@@ -56,9 +55,7 @@ def resize_directory(directory, max_dimension=None):
         subprocess.run(cmd, shell=True)
 
 
-@timeit
 def create_gif_from_directory(directory, output_file=None, delay=5, max_dimension=None, optimize=True):
-    print(f'optimize = {optimize}')
     if optimize:
         resize_directory(directory, max_dimension=max_dimension)
     output_file = output_file if output_file else get_unique_fp('gif')

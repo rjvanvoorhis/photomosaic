@@ -34,11 +34,22 @@ setup(
     description='Convert an image into a mosaic of images',
     author='Ryan Van Voorhis',
     author_email='rjvanvoorhis@crimson.ua.edu',
-    packages=['photomosaic', 'version_info'],
+    packages=['photomosaic', 'version_info', 'photomosaic.scripts'],
     cmdclass=cmdclass,
     ext_modules=ext_modules,
     long_description=open('README.md').read(),
     license="MIT",
+    entry_points={
+          'console_scripts': [
+              'mosaicfy = photomosaic.scripts:main'
+          ]
+      },
+    install_requires=[
+        'cython',
+        'numpy',
+        'click',
+        'Pillow'
+    ],
     classifiers=[
         'Development Status :: Beta',
         'Programming Language :: Python',
