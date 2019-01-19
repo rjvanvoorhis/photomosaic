@@ -44,6 +44,7 @@ setup(
               'mosaicfy = photomosaic.scripts:main'
           ]
       },
+    include_package_data=True,
     install_requires=[
         'cython',
         'numpy',
