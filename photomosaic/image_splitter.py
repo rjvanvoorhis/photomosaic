@@ -1,7 +1,7 @@
 # import time
 import numpy as np
 from PIL import Image
-import photomosaic.matrix_math
+from photomosaic import matrix_math
 
 
 class HilbertList(object):
@@ -69,6 +69,13 @@ class ImageSplitter(object):
         if isinstance(self.tile_list, HilbertList):
             self.tile_list = self.tile_list.get_flat_order()
         self.img = Image.fromarray(self.unblockshaped(self.tile_list, self.rows))
+
+    def get_thumbnail(self, max_size=1000):
+        if isinstance(self.tile_list, HilbertList):
+            self.tile_list = self.tile_list.get_flat_order()
+        img = Image.fromarray(self.unblockshaped(self.tile_list, self.rows))
+        img.thumbnail((max_size, max_size))
+        return img
 
     @staticmethod
     def crop_image(img, tile_size):
