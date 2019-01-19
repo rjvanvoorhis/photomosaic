@@ -1,4 +1,4 @@
 include cython_utils/*.pyx
 include cython_utils/*.c
-include tile_directory/*
+include tile_directories/characters/*.jpg
 include tests/*
