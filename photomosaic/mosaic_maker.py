@@ -5,7 +5,7 @@ from PIL import Image
 
 from photomosaic.image_splitter import ImageSplitter
 from photomosaic.tile_processor import TileProcessor
-import photomosaic.matrix_math
+from photomosaic import matrix_math
 
 
 def get_unique_fp():
@@ -36,7 +36,7 @@ class SimpleQueue:
 class MosaicMaker(object):
     MAX_SIZE = 4000
     MAX_GIF_SIZE = 1080
-    DEFAULT_TILE_DIRECTORY = f'{__file__}/../tile_directories/characters'
+    DEFAULT_TILE_DIRECTORY = f'{os.path.dirname(__file__)}/../tile_directories/characters'
     """
     Class that builds the photo-mosaic
     """
@@ -52,6 +52,7 @@ class MosaicMaker(object):
         self.output_file = output_file
         self.max_repeats = max_repeats
         self.method = method
+        self.replace_tiles()
 
     def set_img(self, img, enlargement):
         h, w = (enlargement * dim for dim in img.size)

@@ -1,12 +1,13 @@
 import time
 import subprocess
 import os
+import shutil
 from PIL import Image
 from photomosaic.mosaic_maker import MosaicMaker
 from photomosaic.progress_bar import parallel_process
 import functools
-TILE_DIRECTORY = '../tile_directories/characters'
-import shutil
+TILE_DIRECTORY = f'{os.path.dirname(__file__)}/../tile_directories/characters'
+
 
 def get_timestamp():
     return str(time.time()).replace('.', '')
