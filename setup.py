@@ -9,7 +9,7 @@ USE_CYTHON=True
 if USE_CYTHON:
     try:
         from Cython.Distutils import build_ext
-    except ImportError:
+    except (ImportError, ModuleNotFoundError):
         if USE_CYTHON == 'auto':
             USE_CYTHON = False
         else:
