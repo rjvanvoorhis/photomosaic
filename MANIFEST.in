@@ -1,2 +1,4 @@
-include photomosaic/tile_directory/*
-include photomosaic/*.pickle
+include cython_utils/*.pyx
+include cython_utils/*.c
+include tile_directory/*
+include tests/*

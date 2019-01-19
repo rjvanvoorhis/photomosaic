@@ -3,10 +3,9 @@ import os
 import numpy as np
 from PIL import Image
 
-from photo_mosaic.image_splitter import ImageSplitter
-from photo_mosaic.tile_processor import TileProcessor
-from photo_mosaic import matrix_math
-
+from photomosaic.image_splitter import ImageSplitter
+from photomosaic.tile_processor import TileProcessor
+import photomosaic.matrix_math
 
 
 def get_unique_fp():
@@ -34,10 +33,10 @@ class SimpleQueue:
         return self.queue.pop()
 
 
-class PhotoMosaic(object):
+class MosaicMaker(object):
     MAX_SIZE = 4000
     MAX_GIF_SIZE = 1080
-    DEFAULT_TILE_DIRECTORY = '../tile_directories/characters'
+    DEFAULT_TILE_DIRECTORY = f'{__file__}/../tile_directories/characters'
     """
     Class that builds the photo-mosaic
     """
@@ -86,10 +85,3 @@ class PhotoMosaic(object):
 
     def get_image(self):
         return self.image_data.img
-"""
-python
-from photomosaic import *
-img = Image.open('chuck.jpg')
-foo = PhotoMosaic(img)
-foo.replace_tiles()
-"""

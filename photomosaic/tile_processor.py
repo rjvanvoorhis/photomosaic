@@ -5,7 +5,7 @@ from PIL import Image
 
 
 class TileProcessor(object):
-    DEFAULT_DIRECTORY = 'tile_directories/characters'
+    DEFAULT_DIRECTORY = f'{__file__}/../tile_directories/characters'
 
     def __init__(self, tile_directory=None, tile_size=8, img_type='L'):
         self.tile_directory = tile_directory if tile_directory is not None else self.DEFAULT_DIRECTORY

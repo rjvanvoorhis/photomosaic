@@ -2,8 +2,8 @@ import time
 import subprocess
 import os
 from PIL import Image
-from photo_mosaic.photomosaic import PhotoMosaic
-from photo_mosaic.progress_bar import parallel_process
+from photomosaic.mosaic_maker import MosaicMaker
+from photomosaic.progress_bar import parallel_process
 import functools
 TILE_DIRECTORY = '../tile_directories/characters'
 import shutil
@@ -80,7 +80,7 @@ class GifSplitter(object):
     def make_mosaic_frame(self, fp, frame_directory, tile_size, enlargement):
         cleaned_fp = f'{fp.replace(".", "_")}.gif'
         img = Image.open(os.path.join(self.frame_directory, fp))
-        mosaic = PhotoMosaic(img, tile_directory=TILE_DIRECTORY, img_type='L',
+        mosaic = MosaicMaker(img, tile_directory=TILE_DIRECTORY, img_type='L',
                              save_intermediates=False, tile_size=tile_size, enlargement=enlargement,
                              output_file=os.path.join(frame_directory, cleaned_fp))
         mosaic.replace_tiles()

@@ -1,7 +1,7 @@
 import time
 import numpy as np
 from PIL import Image
-from cython_utils import sample
+import photomosaic.matrix_math
 
 
 class HilbertList(object):
@@ -9,13 +9,13 @@ class HilbertList(object):
         start = time.time()
         self.rows = len(mat)
         self.cols = len(mat[0])
-        self.n = sample.get_n(self.rows, self.cols)
+        self.n = matrix_math.get_n(self.rows, self.cols)
         self.mat = mat
         self.hilbert_dict = {}
         self.hilbert_indices = {}
         for row_idx, row in enumerate(mat):
             for col_idx, col in enumerate(row):
-                d = sample.xy2d(self.n, col_idx, row_idx)
+                d = matrix_math.xy2d(self.n, col_idx, row_idx)
                 self.hilbert_dict[(col_idx, row_idx)] = d
         self.set_hilbert_order()
         print(f'Took {time.time() - start} to build HilbertList')
