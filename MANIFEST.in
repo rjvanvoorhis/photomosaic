@@ -1,4 +1,6 @@
 include cython_utils/*.pyx
 include cython_utils/*.c
-include tile_directories/characters/*.jpg
+include-recursive tile_directories/ *
 include tests/*
+include README.md
+include LICENSE
