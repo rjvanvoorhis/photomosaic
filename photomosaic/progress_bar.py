@@ -52,11 +52,14 @@ class ProgressBar(object):
         return self.count, result
 
 
-def parallel_process(func, *args, max_workers=5, chunksize=1, desc=None):
+def parallel_process(func, *args, max_workers=5, chunksize=1, desc=None, log_progress=True):
     with ProcessPoolExecutor(max_workers=max_workers) as exec:
-        progress = ProgressBar(
-            exec.map(func, *args, chunksize=chunksize), desc=desc,
-            last_index=len(args[0]) - 1
-        )
+        if log_progress:
+            progress = ProgressBar(
+                exec.map(func, *args, chunksize=chunksize), desc=desc,
+                last_index=len(args[0]) - 1
+            )
+        else:
+            progress = enumerate(exec.map(func, *args, chunksize=chunksize))
         for idx, data in progress:
             yield idx, data

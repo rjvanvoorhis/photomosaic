@@ -6,7 +6,7 @@ import photomosaic.matrix_math
 
 class HilbertList(object):
     def __init__(self, mat):
-        start = time.time()
+        # start = time.time()
         self.rows = len(mat)
         self.cols = len(mat[0])
         self.n = matrix_math.get_n(self.rows, self.cols)
@@ -18,7 +18,7 @@ class HilbertList(object):
                 d = matrix_math.xy2d(self.n, col_idx, row_idx)
                 self.hilbert_dict[(col_idx, row_idx)] = d
         self.set_hilbert_order()
-        print(f'Took {time.time() - start} to build HilbertList')
+        # print(f'Took {time.time() - start} to build HilbertList')
 
     def __getitem__(self, item):
         if not isinstance(item, int):

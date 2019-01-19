@@ -27,9 +27,7 @@ class GifSplitter(object):
         if not os.path.exists(self.frame_directory):
             os.mkdir(self.frame_directory)
         cmd1 = f'gifsicle --explode --unoptimize -O3 {self.original_file} -o {self.frame_directory}/{self.original_file}_frames'
-        # cmd2 = f'cp {self.original_file}_frames* {self.frame_directory}'
         subprocess.run(cmd1.split())
-        # subprocess.run(cmd2.split())
         frames = len(os.listdir(self.frame_directory))
         self.set_delay(frames)
 
@@ -50,7 +48,7 @@ class GifSplitter(object):
         except Exception:
             self.delay = 5
 
-    def asciify(self, output_file=None, tile_size=8, enlargement=1):
+    def asciify(self, output_file=None, tile_size=8, enlargement=1, progress_callback=None):
         frame_directory = get_timestamp()
         output_file = output_file if output_file else f'Mosaic_of_{self.original_file}'
         if not os.path.exists(frame_directory):
@@ -58,13 +56,12 @@ class GifSplitter(object):
         if not os.path.exists(self.frame_directory):
             self.split_gif()
 
-        # arg_list = [(fp, frame_directory, tile_size, enlargement) for fp in sorted(os.listdir(self.frame_directory))]
         progress = parallel_process(functools.partial(self.make_mosaic_frame, frame_directory=frame_directory,
                                                       tile_size=tile_size, enlargement=enlargement),
                                     sorted(os.listdir(self.frame_directory)), desc='Processing Frames')
-        for idx, fp in progress:
-            # todo : do something with progress
-            pass
+        for idx, item in progress:
+            if progress_callback is not None:
+                progress_callback(idx, item)
         self.stitch_gif(frame_directory, output_file)
         return frame_directory, output_file
 
@@ -72,7 +69,6 @@ class GifSplitter(object):
         frame_directory = frame_directory if frame_directory else self.frame_directory
         output_file = output_file if output_file else f'{get_timestamp()}.gif'
         cmd = f'gifsicle -d {int(self.delay)} --loop=0 --optimize -O3 {frame_directory}/* > {output_file}'
-        print(cmd)
         subprocess.run(cmd, shell=True)
         for directory in [frame_directory, self.frame_directory]:
             if os.path.exists(directory):
@@ -84,8 +80,8 @@ class GifSplitter(object):
         mosaic = MosaicMaker(img, tile_directory=TILE_DIRECTORY, img_type='L',
                              save_intermediates=False, tile_size=tile_size, enlargement=enlargement,
                              output_file=os.path.join(frame_directory, cleaned_fp))
-        mosaic.replace_tiles()
         mosaic.save()
+        return mosaic
 
 
 """
