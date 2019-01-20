@@ -2,10 +2,11 @@ import numpy as np
 
 from PIL import Image
 from photomosaic.utilities import get_absolute_fp_list
+from photomosaic import DEFAULT_TILE_DIRECTORY
 
 
 class TileProcessor(object):
-    DEFAULT_DIRECTORY = f'{__file__}/../tile_directories/characters'
+    DEFAULT_DIRECTORY = DEFAULT_TILE_DIRECTORY
 
     def __init__(self, tile_directory=None, tile_size=8, img_type='L'):
         self.tile_directory = tile_directory if tile_directory is not None else self.DEFAULT_DIRECTORY

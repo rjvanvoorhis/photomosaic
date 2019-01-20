@@ -5,14 +5,14 @@ from PIL import Image
 
 from photomosaic.image_splitter import ImageSplitter
 from photomosaic.tile_processor import TileProcessor
-from photomosaic import matrix_math, MAX_IMAGE_DIMENSION, MAX_GIF_DIMENSION
+from photomosaic import matrix_math, MAX_IMAGE_DIMENSION, MAX_GIF_DIMENSION, DEFAULT_TILE_DIRECTORY
 from photomosaic.utilities import get_unique_fp, get_timestamp, create_gif_from_directory
 
 
 class MosaicMaker(object):
     MAX_SIZE = MAX_IMAGE_DIMENSION
     MAX_GIF_SIZE = MAX_GIF_DIMENSION
-    DEFAULT_TILE_DIRECTORY = f'{os.path.dirname(__file__)}/../tile_directories/characters'
+    DEFAULT_TILE_DIRECTORY = DEFAULT_TILE_DIRECTORY
     """
     Class that builds the photo-mosaic
     """

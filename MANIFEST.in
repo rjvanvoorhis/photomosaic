@@ -1,6 +1,6 @@
 include cython_utils/*.pyx
 include cython_utils/*.c
-include-recursive tile_directories/ *
-include tests/*
 include README.md
 include LICENSE
+graft photomosaic/tests
+graft photomosaic/tile_directories
