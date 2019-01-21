@@ -9,13 +9,13 @@ import click
 
 def create_photomosaic(input_file, enlargement=1, tile_size=8, tile_directory=DEFAULT_TILE_DIRECTORY,
                        optimize=True, output_file=None, progress_callback=None, save_intermediates=False,
-                       img_type='L'):
+                       img_type='L', alternate_filename=None):
     if input_file.lower().endswith('gif'):
         create_gif(input_file, enlargement, tile_size, tile_directory,
                    optimize, output_file, progress_callback, img_type)
     else:
         create_frame(input_file, enlargement, tile_size, tile_directory,
-                     optimize, output_file, save_intermediates, img_type)
+                     optimize, output_file, save_intermediates, img_type, alternate_filename)
 
 
 def create_gif(input_file, enlargement=1, tile_size=8, tile_directory=DEFAULT_TILE_DIRECTORY,
@@ -28,11 +28,11 @@ def create_gif(input_file, enlargement=1, tile_size=8, tile_directory=DEFAULT_TI
 
 
 def create_frame(input_file, enlargement=1, tile_size=8, tile_directory=DEFAULT_TILE_DIRECTORY,
-               optimize=True, output_file=None, save_intermediates=False, img_type='L'):
+               optimize=True, output_file=None, save_intermediates=False, img_type='L', alternate_filename=None):
     img = Image.open(input_file)
     mosaic = MosaicMaker(img, tile_directory=tile_directory, enlargement=enlargement, tile_size=tile_size,
                          output_file=output_file, img_type=img_type, save_intermediates=save_intermediates,
-                         optimize=optimize)
+                         optimize=optimize, alternate_filename=alternate_filename)
     mosaic.save()
 
 
@@ -45,10 +45,11 @@ def create_frame(input_file, enlargement=1, tile_size=8, tile_directory=DEFAULT_
 @click.option('--optimize/--no-optimize', default=True, help='Setting this to false will produce uncompressed gifs')
 @click.option('--save_intermediates/--no-save-intermediates', default=True, help='Will make a progress gif')
 @click.option('--img_type', default='L', help='Type of image to convert (L for greyscale RGB for color)')
+@click.option('--alternate_filename', default=None, help='Name of progress gif')
 def main(input_file, output_file, enlargement, tile_size, tile_directory, optimize,
-         save_intermediates, img_type):
+         save_intermediates, img_type, alternate_filename):
     create_photomosaic(input_file, enlargement, tile_size, tile_directory, optimize,
-                       output_file, None, save_intermediates, img_type)
+                       output_file, None, save_intermediates, img_type, alternate_filename)
 
 
 if __name__ == '__main__':

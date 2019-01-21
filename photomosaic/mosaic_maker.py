@@ -17,12 +17,13 @@ class MosaicMaker(object):
     Class that builds the photo-mosaic
     """
     def __init__(self, img, tile_directory=None, enlargement=1, tile_size=8,
-                 output_file=None, img_type='L', intermediate_frames=50,
+                 output_file=None, img_type='L', intermediate_frames=50, alternate_filename=None,
                  save_intermediates=False, max_repeats=0, method='euclid', optimize=True):
         img = self.set_img(img, enlargement).convert(img_type)
         tile_directory = tile_directory if tile_directory is not None else self.DEFAULT_TILE_DIRECTORY
         output_file = output_file if output_file is not None else get_unique_fp()
         self.save_intermediates = save_intermediates
+        self.alternate_filename = alternate_filename
         self.intermediate_frames = intermediate_frames
         self.image_data = ImageSplitter(img, tile_size)
         self.tile_data = TileProcessor(tile_directory, tile_size, img_type)
@@ -50,6 +51,8 @@ class MosaicMaker(object):
         return list(out)
 
     def setup_intermediates(self):
+        if self.alternate_filename is None:
+            self.alternate_filename = os.path.join(os.path.dirname(self.output_file), get_unique_fp('gif'))
         frame_directory = get_timestamp()
         os.mkdir(frame_directory)
         self.image_data.hilbertize()
@@ -68,7 +71,7 @@ class MosaicMaker(object):
                 thumbnail.save(os.path.join(frame_directory, f'Mosaic_frame_{img_idx:012d}.gif'))
                 self.image_data.tile_list = temp_order
         self.image_data.stitch_image()
-        create_gif_from_directory(frame_directory, delay=10, optimize=optimize)
+        create_gif_from_directory(frame_directory, delay=10, optimize=optimize, output_file=self.alternate_filename)
         shutil.rmtree(frame_directory)
 
     def replace_tiles_no_gif(self):
