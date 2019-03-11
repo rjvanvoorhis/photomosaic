@@ -35,8 +35,8 @@ class MosaicMaker(object):
     def set_img(self, img, enlargement):
         h, w = (enlargement * dim for dim in img.size)
         if any(dim > self.MAX_SIZE for dim in (h, w)):
-            enlargement = int(self.MAX_SIZE / (max(h, w)) * enlargement)
-            h, w = (enlargement * dim for dim in img.size)
+            enlargement = float(self.MAX_SIZE / (max(h, w)) * enlargement)
+            h, w = (int(enlargement * dim) for dim in img.size)
         return img.resize((h, w), Image.ANTIALIAS)
 
     def get_tile_order(self):
