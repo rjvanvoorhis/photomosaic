@@ -1,112 +1,67 @@
-# import time
 import numpy as np
 from PIL import Image
-from photomosaic import matrix_math
+from photomosaic import utilities
 
 
-class HilbertList(object):
-    def __init__(self, mat):
-        # start = time.time()
-        self.rows = len(mat)
-        self.cols = len(mat[0])
-        self.n = matrix_math.get_n(self.rows, self.cols)
-        self.mat = mat
-        self.hilbert_dict = {}
-        self.hilbert_indices = {}
-        for row_idx, row in enumerate(mat):
-            for col_idx, col in enumerate(row):
-                d = matrix_math.xy2d(self.n, col_idx, row_idx)
-                self.hilbert_dict[(col_idx, row_idx)] = d
-        self.set_hilbert_order()
-        # print(f'Took {time.time() - start} to build HilbertList')
-
-    def __getitem__(self, item):
-        if not isinstance(item, int):
-            foo = str(type(item))
-            raise TypeError('list indicies must be int not %s' % foo)
-        try:
-            col, row = self.hilbert_indices[item]
-        except KeyError:
-            raise IndexError
-        return self.mat[row][col]
-
-    def __setitem__(self, name, value):
-        if isinstance(name, int):
-            col, row = self.hilbert_indices[name]
-            self.mat[row][col] = value
-        else:
-            raise TypeError(f'list indicies must be int not {str(type(name))}')
-
-    def __len__(self):
-        return len(self.hilbert_dict)
-
-    def set_hilbert_order(self):
-        indices = [item[0] for item in sorted(
-            self.hilbert_dict.items(), key=lambda x: x[1])]
-        self.hilbert_indices = {idx: pair for idx, pair in enumerate(indices)}
-
-    def get_hilbert_order(self):
-        indices = [item[0] for item in sorted(
-            self.hilbert_dict.items(), key=lambda x: x[1])]
-        return [self.mat[row][col] for col, row in indices]
-
-    def get_flat_order(self):
-        return np.asarray([col for row in self.mat for col in row])
-
-
-class ImageSplitter(object):
-    def __init__(self, img, tile_size):
-        self.img = self.crop_image(img, tile_size)
-        self.tile_size = tile_size
-        self.cols = img.size[0] // tile_size
-        self.rows = img.size[1] // tile_size
-        self.tile_list = self.blockshaped(np.asarray(self.img), tile_size)
-
-    def hilbertize(self):
-        self.tile_list = HilbertList(self.get_mat(self.tile_list, self.rows))
-
-    def stitch_image(self):
-        if isinstance(self.tile_list, HilbertList):
-            self.tile_list = self.tile_list.get_flat_order()
-        self.img = Image.fromarray(self.unblockshaped(self.tile_list, self.rows))
-
-    def get_thumbnail(self, max_size=1000):
-        if isinstance(self.tile_list, HilbertList):
-            self.tile_list = self.tile_list.get_flat_order()
-        img = Image.fromarray(self.unblockshaped(self.tile_list, self.rows))
-        img.thumbnail((max_size, max_size))
-        return img
+class ImageSplitter:
+    MAX_SIZE = 4000
 
     @staticmethod
-    def crop_image(img, tile_size):
-        w, h = img.size
-        w_crop = w % tile_size
-        h_crop = h % tile_size
-        crop_rect = (w_crop//2, h_crop//2, w - w_crop + w_crop//2, h - h_crop + h_crop//2)
-        return img.crop(crop_rect)
+    def image_to_blocks(image, tile_size):
+        data = np.asarray(image)
+        rows = data.shape[0] // tile_size
+        cols = data.shape[1] // tile_size
+        matrix = [np.split(row, cols, axis=1) for row in np.split(data, rows)]
+        return np.asarray([col for row in matrix for col in row])
 
     @staticmethod
-    def blockshaped(arr, tile_size):
-        rows = arr.shape[0] // tile_size
-        cols = arr.shape[1] // tile_size
-        mat = [np.split(row, cols, axis=1) for row in
-               np.split(arr, rows)]
-        return np.asarray([col for row in mat for col in row])
+    def blocks_to_image(data, rows):
+        data = np.asarray(data) if isinstance(data, list) else data
+        pix_map = np.concatenate([np.concatenate(row, axis=1) for row in np.split(data, rows)])
+        return Image.fromarray(pix_map)
 
-    @staticmethod
-    def unblockshaped(arr, rows):
-        if isinstance(arr, list):
-            arr = np.asarray(arr)
-        row_list = np.split(arr, rows)
-        pix_map = np.concatenate([
-            np.concatenate(row, axis=1) for row in row_list
+    def __init__(self, image, tile_size=8, image_type='L'):
+        self._format = image.format
+        image = image.convert(image_type)
+        if not int(tile_size) > 0:
+            raise ValueError('tile_size must be a non zero integer')
+        self.tile_size = int(tile_size)
+        image = utilities.crop_image(image, self.tile_size)
+        self.cols = image.size[0] // tile_size
+        self.rows = image.size[1] // tile_size
+        self.tile_list = self.image_to_blocks(image, self.tile_size)
+
+    @property
+    def format(self):
+        image_format = self._format if self._format else 'png'
+        return 'jpg' if image_format == 'JPEG' else image_format
+
+    @property
+    def image(self):
+        return self.blocks_to_image(self.tile_list, self.rows)
+
+    @property
+    def tile_matrix(self):
+        return np.asarray([
+            [self.tile_list[(self.cols * row) + index] for index in range(self.cols)]
+            for row in range(self.rows)
         ])
-        return pix_map
 
-    @staticmethod
-    def get_mat(tile_list, rows):
-        cols = len(tile_list)//rows
-        return np.asarray([[tile_list[cols * j + i] for i in range(cols)] for j in range(rows)])
-
-    def get_data(self):
+    @property
+    def tile_data(self):
         return np.asarray([tile for tile in self.tile_list], dtype=np.int32)
+
+    def save(self, output_file=None):
+        image = self.image
+        output_file = utilities.generate_filename(file_type=self.format) if output_file is None else output_file
+        if any(dim > self.MAX_SIZE for dim in image.size):
+            image = image.copy()
+            image.thumbnail((self.MAX_SIZE, self.MAX_SIZE), Image.ANTIALIAS)
+        image.save(output_file)
+
+    @classmethod
+    def load(cls, filename, tile_size=8, image_type='L', scale=1):
+        with Image.open(filename) as image:
+            image.format = filename.split('.')[-1] if not image.format else image.format
+            splitter = cls(utilities.scale_image(image, scale=scale), tile_size, image_type)
+        return splitter

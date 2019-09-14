@@ -1,107 +1,48 @@
-import os
-import shutil
 import numpy as np
-from PIL import Image
-
-from photomosaic.image_splitter import ImageSplitter
-from photomosaic.tile_processor import TileProcessor
-from photomosaic import matrix_math, MAX_IMAGE_DIMENSION, MAX_GIF_DIMENSION, DEFAULT_TILE_DIRECTORY
-from photomosaic.utilities import get_unique_fp, get_timestamp, create_gif_from_directory
+from photomosaic import matrix_math
+from photomosaic import utilities
 
 
-class MosaicMaker(object):
-    MAX_SIZE = MAX_IMAGE_DIMENSION
-    MAX_GIF_SIZE = MAX_GIF_DIMENSION
-    DEFAULT_TILE_DIRECTORY = DEFAULT_TILE_DIRECTORY
+def euclid(image_splitter, tile_processor):
     """
-    Class that builds the photo-mosaic
+    The default tile order function
+    Takes a image_splitter and a tile_processor as input and returns the sorted order
+    :return: list of indexes of tile indexes to replace in image splitter
     """
-    def __init__(self, img, tile_directory=None, enlargement=1, tile_size=8,
-                 output_file=None, img_type='L', intermediate_frames=50, alternate_filename=None,
-                 save_intermediates=False, max_repeats=0, method='euclid', optimize=True):
-        img = self.set_img(img, enlargement).convert(img_type)
-        tile_directory = tile_directory if tile_directory is not None else self.DEFAULT_TILE_DIRECTORY
-        output_file = output_file if output_file is not None else get_unique_fp()
-        self.save_intermediates = save_intermediates
-        self.alternate_filename = alternate_filename
-        self.intermediate_frames = intermediate_frames
-        self.image_data = ImageSplitter(img, tile_size)
-        self.tile_data = TileProcessor(tile_directory, tile_size, img_type)
-        self.output_file = output_file
-        self.max_repeats = max_repeats
-        self.method = method
-        self.replace_tiles(optimize=optimize)
+    image_data = image_splitter.tile_data
+    tile_data = tile_processor.tile_data
+    comparison_method = matrix_math.diff2dlist if len(image_data.shape) == 3 else matrix_math.diff3dlist
+    return list(
+        matrix_math.get_order(
+            comparison_method(
+                image_data,
+                tile_data,
+                np.zeros((image_data.shape[0], tile_data.shape[0]), dtype=np.int32)  # comparison buffer
+            ),
+            np.zeros((image_data.shape[0]), dtype=np.int32)  # buffer of list of tile indexes
+        )
+    )
 
-    def set_img(self, img, enlargement):
-        h, w = (enlargement * dim for dim in img.size)
-        if any(dim > self.MAX_SIZE for dim in (h, w)):
-            enlargement = float(self.MAX_SIZE / (max(h, w)) * enlargement)
-            h, w = (int(enlargement * dim) for dim in img.size)
-        return img.resize((h, w), Image.ANTIALIAS)
 
-    def get_tile_order(self):
-        images = self.image_data.get_data()
-        tiles = np.asarray(self.tile_data.tile_list, dtype=np.int32)
-        tile_shape = len(images.shape)
-        diff_method = matrix_math.diff2dlist if tile_shape == 3 else matrix_math.diff3dlist
-        output = np.zeros((images.shape[0], tiles.shape[0]), dtype=np.int32)
-        out_idxs = np.zeros((images.shape[0]), dtype=np.int32)
-        res = diff_method(images, tiles, output)
-        out = matrix_math.get_order(res, out_idxs)
-        return list(out)
+class MosaicMaker:
 
-    def setup_intermediates(self):
-        if self.alternate_filename is None:
-            self.alternate_filename = os.path.join(os.path.dirname(self.output_file), get_unique_fp('gif'))
-        frame_directory = get_timestamp()
-        os.mkdir(frame_directory)
-        self.image_data.hilbertize()
-        return frame_directory
+    def __init__(self, image_splitter, tile_processor, method=None, output_file=None, context=None):
+        self.context = context or {'frame_number': 1, 'total_frames': 1}
+        self.image_splitter = image_splitter
+        self.tile_processor = tile_processor
+        self.method = method or euclid
+        self.output_file = output_file or utilities.generate_filename(file_type=image_splitter.format)
 
-    def create_gif_from_progress(self, optimize=True):
-        frame_directory = self.setup_intermediates()
-        tile_order = self.get_tile_order()
-        total = len(tile_order)
-        save_on = max(total // max(self.intermediate_frames, 1), 1)
-        for img_idx, tile_idx in enumerate(tile_order):
-            self.image_data.tile_list[img_idx] = self.tile_data.tile_list[tile_idx]
-            if img_idx % save_on == 0 or img_idx == (total - 1):
-                temp_order = self.image_data.tile_list
-                thumbnail = self.image_data.get_thumbnail(self.MAX_GIF_SIZE)
-                thumbnail.save(os.path.join(frame_directory, f'Mosaic_frame_{img_idx:012d}.gif'))
-                self.image_data.tile_list = temp_order
-        self.image_data.stitch_image()
-        create_gif_from_directory(frame_directory, delay=10, optimize=optimize, output_file=self.alternate_filename)
-        shutil.rmtree(frame_directory)
+    def save(self, output_file=None):
+        output_file = output_file or self.output_file
+        self.image_splitter.save(output_file)
+        return self
 
-    def replace_tiles_no_gif(self):
-        tile_order = self.get_tile_order()
-        for img_idx, tile_idx in enumerate(tile_order):
-            self.image_data.tile_list[img_idx] = self.tile_data.tile_list[tile_idx]
-        self.image_data.stitch_image()
+    def process(self):
+        for image_index, tile_index in enumerate(self.method(self.image_splitter, self.tile_processor)):
+            self.image_splitter.tile_list[image_index] = self.tile_processor.tile_list[tile_index]
+        return self
 
-    def replace_tiles(self, save_intermediates=None, optimize=True):
-        save_intermediates = save_intermediates if save_intermediates is not None else self.save_intermediates
-        if save_intermediates:
-            self.create_gif_from_progress(optimize=optimize)
-        else:
-            self.replace_tiles_no_gif()
-
-    def save(self, output_file=None, max_size=None):
-        img = self.image_data.img
-        if max_size is not None and max_size < max(img.size):
-            img = img.copy()
-            img.thumbnail((max_size, max_size), Image.ANTIALIAS)
-        output_file = output_file if output_file is not None else self.output_file
-        img.save(output_file)
-
-    def get_image(self):
-        return self.image_data.img
-
-"""
-python
-from PIL import Image
-from photomosaic.mosaic_maker import MosaicMaker
-img = Image.open('chuck.jpg')
-foo = MosaicMaker(img, save_intermediates=True)
-"""
+    @property
+    def image(self):
+        return self.image_splitter.image

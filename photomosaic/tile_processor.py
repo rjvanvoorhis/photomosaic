@@ -1,41 +1,29 @@
+import os
 import numpy as np
-
 from PIL import Image
-from photomosaic.utilities import get_absolute_fp_list
-from photomosaic import DEFAULT_TILE_DIRECTORY
+from photomosaic import utilities
 
 
-class TileProcessor(object):
-    DEFAULT_DIRECTORY = DEFAULT_TILE_DIRECTORY
+class TileProcessor:
+    DEFAULT_DIRECTORY = os.path.abspath(os.path.join(__file__, '../character_directory'))
 
-    def __init__(self, tile_directory=None, tile_size=8, img_type='L'):
-        self.tile_directory = tile_directory if tile_directory is not None else self.DEFAULT_DIRECTORY
+    def __init__(self, tile_directory=None, tile_size=8, image_type='L'):
+        tile_directory = tile_directory or self.DEFAULT_DIRECTORY
+        self.tile_directory = utilities.find_dir(tile_directory)
+        self.image_type = image_type
         self.tile_size = tile_size
-        self.img_type = img_type
-        self.tile_list = self.get_tiles(tile_directory)
+        self.tile_list = self.process_tiles()
 
-    @staticmethod
-    def crop_image(img):
-        w, h = img.size
-        min_dim = min(w, h)
-        w_crop = w - min_dim
-        h_crop = h - min_dim
-        crop_rect = (w_crop//2, h_crop//2, w - w_crop + w_crop//2, h - h_crop + h_crop//2)
-        return img.crop(crop_rect)
+    def _process_tile(self, path):
+        with Image.open(path) as image:
+            image = utilities.crop_largest_square(image)
+            image = utilities.resize_image(image, (self.tile_size, self.tile_size))
+            data = np.asarray(image.convert(self.image_type))
+        return data
 
-    @staticmethod
-    def resize_image(img, tile_size):
-        return img.resize((tile_size, tile_size), Image.ANTIALIAS)
+    def process_tiles(self):
+        return [self._process_tile(path) for path in utilities.absolute_listdir(self.tile_directory)]
 
-    def process_image(self, fp):
-        img = Image.open(fp)
-        img = self.crop_image(img)
-        img = self.resize_image(img, self.tile_size)
-        return np.asarray(img.convert(self.img_type))
-
-    def get_tiles(self, tile_directory=None):
-        tile_directory = tile_directory if tile_directory is not None else self.tile_directory
-        fp_list = get_absolute_fp_list(tile_directory)
-        return [self.process_image(fp) for fp in fp_list]
-
-
+    @property
+    def tile_data(self):
+        return np.asarray(self.tile_list, dtype=np.int32)

@@ -1,101 +1,123 @@
-import subprocess
 import os
+import subprocess
 import shutil
+import time
+import itertools
 from PIL import Image
-from photomosaic.mosaic_maker import MosaicMaker
-from photomosaic.progress_bar import parallel_process
-from photomosaic.utilities import get_timestamp
-import functools
-from photomosaic.utilities import create_gif_from_directory
-from photomosaic import DEFAULT_TILE_DIRECTORY, MAX_GIF_DIMENSION
+from photomosaic import utilities, mosaic_maker, tile_processor, image_splitter
+GIFSICLE_HELPER = os.path.abspath(
+    os.path.join(
+        f'__file__/../photomosaic/',
+        'gifsicle_helper.sh'
+    )
+)
 
 
-class GifSplitter(object):
-    DELAY_RANGE = range(3, 15)
+class GifSplitter:
+    DEFAULT_DELAY = 5
 
-    def __init__(self, fp):
-        img = Image.open(fp)
-        self.duration = img.info.get('duration')
-        self.delay = 5
-        self.original_file = fp
-        self.frame_directory = f'{get_timestamp()}_frames_dir'
+    def __init__(self, gif_path, frame_directory=None):
+        with Image.open(gif_path) as image:
+            self.info = image
+        self.gif_path = gif_path
+        self.frame_directory = frame_directory or f'{int(time.time() * 1000)}_gif_frames'
+
+    @property
+    def info(self):
+        return self._info or {}
+
+    @info.setter
+    def info(self, image):
+        image.seek(0)
+        self._info = image.info or {}
+        duration = 0
+        for frames in itertools.count(start=1):
+            try:
+                info = image.info or {}
+                duration += info.get('duration', 0)
+                image.seek(frames)
+            except EOFError:
+                delay = duration / (max(1, frames) * 10)
+                self._info.update({'duration': duration, 'frames': frames, 'delay': delay})
+                break
 
     def split_gif(self):
         if not os.path.exists(self.frame_directory):
             os.mkdir(self.frame_directory)
-        cmd1 = f'gifsicle --explode --unoptimize -O2 {self.original_file} ' \
-               f'-o {self.frame_directory}/{self.original_file}_frames'
-        subprocess.run(cmd1.split())
-        frames = len(os.listdir(self.frame_directory))
-        self.set_delay(frames)
+        cmd = f'gifsicle --explode --unoptimize -O2 {self.gif_path} -o {self.frame_directory}/frames'
+        subprocess.run(cmd.split())
+        self._clean_files(self.frame_directory)
+        return self
 
-    def set_delay(self, total_frames, duration=None):
-        duration = duration if duration else self.duration
-        if not duration:
-            self.delay = 5
-            return
-        try:
-            if duration / 10 in self.DELAY_RANGE:
-                self.delay = duration/ 10
-            elif duration / total_frames in self.DELAY_RANGE:
-                self.delay = duration / total_frames
-            elif duration in self.DELAY_RANGE:
-                self.delay = duration
-            else:
-                self.delay = 5
-        except Exception:
-            self.delay = 5
+    def _clean_files(self, path=None):
+        path = path or self.frame_directory
+        for filename in utilities.absolute_listdir(path):
+            dst = f'{filename.replace(".", "_")}.gif'
+            os.rename(filename, dst)
 
-    def to_photomosaic(self, tile_directory=DEFAULT_TILE_DIRECTORY, output_file=None, tile_size=8,
-                       enlargement=1, progress_callback=None, optimize=True, img_type='L'):
-        frame_directory = get_timestamp()
-        output_file = output_file if output_file else f'Mosaic_of_{self.original_file}'
-        if not os.path.exists(frame_directory):
-            os.mkdir(frame_directory)
-        if not os.path.exists(self.frame_directory):
-            self.split_gif()
 
-        progress = parallel_process(functools.partial(self.make_mosaic_frame, tile_directory=tile_directory,
-                                                      frame_directory=frame_directory, tile_size=tile_size,
-                                                      enlargement=enlargement, optimize=optimize, img_type=img_type),
-                                    sorted(os.listdir(self.frame_directory)), desc='Processing Frames')
-        for idx, item in progress:
-            if progress_callback is not None:
-                progress_callback(idx, item)
-        self.stitch_gif(frame_directory, output_file, optimize=optimize)
-        return frame_directory, output_file
+class GifStitcher:
+    DEFAULT_DELAY = 5
 
-    def asciify(self, output_file=None, tile_size=8, enlargement=1, progress_callback=None, optimize=True):
-        return self.to_photomosaic(output_file=output_file, tile_size=tile_size, enlargement=enlargement,
-                                   progress_callback=progress_callback, optimize=optimize)
+    def __init__(self, frame_directory, image_info=None, gif_path=None):
+        self.frame_directory = frame_directory
+        self.gif_path = gif_path or utilities.generate_filename(file_type='.gif')
+        self.info = image_info
 
-    def stitch_gif(self, frame_directory=None, output_file=None, optimize=True):
-        frame_directory = frame_directory if frame_directory else self.frame_directory
-        output_file = output_file if output_file else f'{get_timestamp()}.gif'
-        # cmd = f'gifsicle -d {int(self.delay)} --loop=0 --optimize -O3 {frame_directory}/* > {output_file}'
-        # subprocess.run(cmd, shell=True)
-        create_gif_from_directory(frame_directory, output_file=output_file,
-                                  delay=int(self.delay), optimize=optimize)
-        for directory in [frame_directory, self.frame_directory]:
-            if os.path.exists(directory):
-                shutil.rmtree(directory)
+    @property
+    def info(self):
+        return self._info
 
-    def make_mosaic_frame(self, fp, tile_directory, frame_directory, tile_size, enlargement, optimize, img_type):
-        cleaned_fp = f'{fp.replace(".", "_")}.gif'
-        img = Image.open(os.path.join(self.frame_directory, fp))
-        mosaic = MosaicMaker(img, tile_directory=tile_directory, img_type=img_type,
-                             save_intermediates=False, tile_size=tile_size, enlargement=enlargement,
-                             output_file=os.path.join(frame_directory, cleaned_fp))
-        if optimize:
-            mosaic.save()
+    @info.setter
+    def info(self, image_info):
+        if image_info:
+            self._info = image_info
         else:
-            mosaic.save(max_size=MAX_GIF_DIMENSION)
-        return mosaic
+            frames = len(os.listdir(self.frame_directory))
+            self._info = {
+                'frames': frames,
+                'duration': self.DEFAULT_DELAY * frames,
+                'delay': self.DEFAULT_DELAY
+            }
+
+    @property
+    def duration(self):
+        return self._info.get('duration')
+
+    @property
+    def delay(self):
+        return int(self._info.get('delay', self.DEFAULT_DELAY))
+
+    def stitch_gif(self, gif_path=None):
+        gif_path = gif_path or self.gif_path
+        cmd = f'bash {GIFSICLE_HELPER} {self.delay} {self.frame_directory} {gif_path}'
+        subprocess.run(cmd.split())
+        shutil.rmtree(self.frame_directory)
+        return self
 
 
-"""
-python
-from photomosaic.gif_splitter import *
-foo = GifSplitter('ships.gif')
-foo.asciify(enlargement=6)
-"""
+def gif_to_mosaic(fp, scale=1):
+    splitter = GifSplitter(fp, 'mosaic_test')
+    splitter.split_gif()
+    tile_proc = tile_processor.TileProcessor()
+    _convert_frames(tile_proc, scale, 'mosaic_test')
+    GifStitcher(
+        splitter.frame_directory,
+        splitter.info,
+        gif_path=f'mosaic_of_{fp}'
+    ).stitch_gif()
+
+
+def _convert_frames(tile_proc, scale, frame_dir):
+    frame_len = len(utilities.absolute_listdir(frame_dir))
+    for idx, frame in enumerate(utilities.absolute_listdir(frame_dir)):
+        print(f'frame {idx} of {frame_len}')
+        mosaic_maker.MosaicMaker(
+            image_splitter.ImageSplitter.load(frame, scale=scale),
+            tile_proc,
+            output_file=frame
+        ).process().save()
+
+
+if __name__ == '__main__':
+    gif_to_mosaic('loading_gif.gif')

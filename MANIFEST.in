@@ -2,5 +2,6 @@ include cython_utils/*.pyx
 include cython_utils/*.c
 include README.md
 include LICENSE
+include photomosaic/gifsicle_helper.sh
 graft photomosaic/tests
 graft photomosaic/tile_directories
