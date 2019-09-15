@@ -6,7 +6,7 @@ from photomosaic.api import mosaicfy, is_animated
 @click.command()
 @click.argument('filename', type=click.Path(exists=True))
 @click.option('--tile_size', default=8)
-@click.option('--scale', default=1.0)
+@click.option('--scale', default=1)
 @click.option('--output_file')
 @click.option('--show/--no-show', default=False)
 def cli(filename, **kwargs):

@@ -37,7 +37,7 @@ setup(
     package_dir={'photomosaic': 'photomosaic', 'photomosaic.version_info': 'version_info'},
     entry_points={
         'console_scripts': [
-            'mosaicfy = photomosaic.scripts.cli:cli'
+            'mosaicfy = photomosaic.cli:cli'
         ]
     },
     include_package_data=True,

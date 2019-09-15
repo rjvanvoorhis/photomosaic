@@ -5,12 +5,7 @@ import time
 import itertools
 from PIL import Image
 from photomosaic import utilities, mosaic_maker, tile_processor, image_splitter
-GIFSICLE_HELPER = os.path.abspath(
-    os.path.join(
-        f'__file__/../photomosaic/',
-        'gifsicle_helper.sh'
-    )
-)
+GIFSICLE_HELPER = os.path.abspath(f'{__file__}/../gifsicle_helper.sh')
 
 
 class GifSplitter:

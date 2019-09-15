@@ -62,6 +62,10 @@ def find_path(path, path_type=None, top=None):
         'file': os.path.isfile,
         'dir': os.path.isdir,
     }.get(path_type.lower(), os.path.isfile)
+    if check_method(path):
+        # first check if this is an absolute path
+        return os.path.abspath(path)
+
     top = top if top is not None else os.getcwd()
     for root, dirs, files in os.walk(top, topdown=True):
         search_list = dirs if path_type == 'dir' else files
