@@ -4,7 +4,7 @@ from distutils.extension import Extension
 from version_info import __author__, __version__
 
 
-USE_CYTHON=True
+USE_CYTHON = 'auto'
 if USE_CYTHON:
     try:
         from Cython.Distutils import build_ext
@@ -35,7 +35,6 @@ setup(
     cmdclass=cmdclass,
     packages=['photomosaic', 'photomosaic.version_info'],
     package_dir={'photomosaic': 'photomosaic', 'photomosaic.version_info': 'version_info'},
-    # package_dir={'photomosaic': 'photomosaic', 'photomosaic.dist_info': 'dist_info'},
     entry_points={
         'console_scripts': [
             'mosaicfy = scripts.cli:cli'
@@ -43,9 +42,10 @@ setup(
     },
     include_package_data=True,
     install_requires=[
-        'cython',
+        'Cython',
         'numpy',
         'click',
-        'Pillow'
+        'Pillow',
+        'enlighten'
     ]
 )
